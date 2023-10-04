@@ -6,7 +6,7 @@ RUN apt-get -y install vim
 
 WORKDIR /app
 
-COPY ./requirement.txt /app/requirement.txt
+COPY . .
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
