@@ -79,7 +79,8 @@ def register_user(data,logger):
             "running_as_user_name": "stsdfdsring",
             "environment_settings": "sdf",
             "agent_metadata": "{\"asdsad\":\"asdasd\"}",
-            "organization": data["organization_id"]
+            "organization": data["organization_id"],
+            "agent_state": "active"
         })
         headers = {
             'Content-Type': 'application/json',
