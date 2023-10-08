@@ -76,7 +76,7 @@ def register_user(data,logger):
             "health_status": "active",
             "ip_address": "127.0.0.1",
             "host_name": "sdf",
-            "running_as_user_name": "stsdfdsring",
+            "running_as_user_name": data["name"],
             "environment_settings": "sdf",
             "agent_metadata": "{\"asdsad\":\"asdasd\"}",
             "organization": data["organization_id"],
