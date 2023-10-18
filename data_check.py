@@ -142,23 +142,14 @@ def send_system_data(agent_data,logger):
 if __name__ == "__main__":
     credentials_file_path = "credentials.json"
     aws_credentials = read_aws_credentials_from_json(credentials_file_path)
-    if "agent_uuid" not in aws_credentials:
-        # Generate a random UUID (version 4)
-        random_uuid = uuid.uuid4()
-        # Convert the UUID to a string
-        random_uuid_str = str(random_uuid)
-        aws_credentials['agent_uuid'] = random_uuid_str
-        # Step 3: Write the updated data structure back to the JSON file
-        with open(credentials_file_path, 'w') as file:
-            json.dump(aws_credentials, file, indent=4)
-    log_file = "healthCheck.log"
+    while "agent_uuid" not in aws_credentials:
+        aws_credentials = read_aws_credentials_from_json(credentials_file_path)
+        time.sleep(10)
+    log_file = "DataCheck.log"
     logger = setup_logger(log_file)
     if aws_credentials:
-        response  = register_user(aws_credentials,logger)
-        if response.status_code==200:
-            agent_id = response.json().get("agent_id")
-            while True:
-                # bucket_name = aws_credentials.get("bucket_name")
-                # check_s3_bucket_health(aws_credentials, bucket_name,logger)
-                send_system_data(aws_credentials,logger)
-                time.sleep(300)
+        while True:
+            bucket_name = aws_credentials.get("bucket_name")
+            check_s3_bucket_health(aws_credentials, bucket_name,logger)
+            send_system_data(aws_credentials,logger)
+            time.sleep(300)
