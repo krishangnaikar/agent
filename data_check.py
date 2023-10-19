@@ -206,4 +206,5 @@ if __name__ == "__main__":
             for file in bucket_files:
                 logger.info(f"Starting data check for item {start} : {file}")
                 get_s3_access_details(bucket_name,file,aws_credentials,logger)
+                start+=1
             time.sleep(300)
