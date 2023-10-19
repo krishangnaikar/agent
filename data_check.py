@@ -1,12 +1,10 @@
 import json
-import time
 import logging
 import logging.handlers
 import boto3
 from botocore.exceptions import BotoCoreError
 import psutil
 import time
-import uuid
 import requests
 
 
@@ -137,7 +135,59 @@ def send_system_data(agent_data,logger):
 
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
+def lsit_all_s3_data(bucket,credentials,logger):
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=credentials['aws_access_key_id'],
+            aws_secret_access_key=credentials['aws_secret_access_key']
+        )
 
+        # Replace 'your-bucket-name' with your actual S3 bucket name
+        bucket_name = bucket
+
+        # List all objects in the bucket
+        objects = s3_client.list_objects_v2(Bucket=bucket_name)
+
+        # Iterate through the objects and print their keys
+        bucket_files = []
+        for obj in objects.get('Contents', []):
+            bucket_files.append((obj["Key"],obj['Size']))
+            logger.info(f"File: {obj['Key']} - Size: {obj['Size']} bytes")
+        return bucket_files
+    except Exception as exp:
+        logger.error(f"An error occurred: {exp}")
+        return []
+def get_s3_access_details(bucket_name,file,credentials,logger):
+    # Initialize the Boto3 S3 client
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=credentials['aws_access_key_id'],
+            aws_secret_access_key=credentials['aws_secret_access_key']
+        )
+
+        # Replace 'your-bucket-name' with your actual S3 bucket nam
+
+        # Replace 'your-file-key' with the key of the file you want to query
+        file_key = file[0]
+
+        # List object ACL (Access Control List)
+        file_acl = s3_client.get_object_acl(Bucket=bucket_name, Key=file_key)
+
+        # Output the ACL for the file
+        logger.info("File ACL:")
+        for grant in file_acl['Grants']:
+            logger.info(grant)
+
+        # List object policy
+        file_policy = s3_client.get_bucket_policy(Bucket=bucket_name)
+
+        # Output the policy for the file
+        logger.info("\nFile Policy:")
+        logger.info(file_policy['Policy'])
+    except Exception as exp:
+        logger.error(f"An error occurred: {exp}")
 
 if __name__ == "__main__":
     credentials_file_path = "credentials.json"
@@ -150,6 +200,10 @@ if __name__ == "__main__":
     if aws_credentials:
         while True:
             bucket_name = aws_credentials.get("bucket_name")
-            check_s3_bucket_health(aws_credentials, bucket_name,logger)
-            send_system_data(aws_credentials,logger)
+            bucket_files = lsit_all_s3_data(bucket_name,aws_credentials,logger)
+            logger.info(f"Total list of files are {len(bucket_files)}")
+            start = 1
+            for file in bucket_files:
+                logger.info(f"Starting data check for item {start} : {file}")
+                get_s3_access_details(bucket_name,file,aws_credentials,logger)
             time.sleep(300)
