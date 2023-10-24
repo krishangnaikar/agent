@@ -40,6 +40,26 @@ def read_aws_credentials_from_json(file_path):
         print(f"Invalid JSON format in '{file_path}'.")
         return None
 
+def get_client_name_by_id(client_id,credentials,logger):
+
+    try:
+        iam_client = boto3.client('iam',
+                                  aws_access_key_id=credentials['aws_access_key_id'],
+                                  aws_secret_access_key=credentials['aws_secret_access_key']
+                                  )
+        # Replace 'your-aws-account-id' with the AWS account ID you want to look up
+        aws_account_id = client_id
+        response = iam_client.get_account_authorization_details(Filter=['User'])
+
+        for user_detail in response.get('UserDetailList', []):
+            if user_detail['Arn'].split(':')[4] == aws_account_id:
+                user_name = user_detail['UserName']
+                print(f"User Name: {user_name}")
+                break  # Break after finding the user
+        else:
+            print(f"No user found with AWS account ID {aws_account_id}")
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
 def check_s3_bucket_health(credentials, bucket_name,logger):
     try:
         # Initialize the S3 client with the provided credentials
@@ -158,6 +178,33 @@ def lsit_all_s3_data(bucket,credentials,logger):
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
         return []
+
+def get_s3_file_details(bucket_name,file,credentials,logger):
+    # Initialize the Boto3 S3 client
+    try:
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=credentials['aws_access_key_id'],
+            aws_secret_access_key=credentials['aws_secret_access_key']
+        )
+
+        # Replace 'your-bucket-name' with your actual S3 bucket nam
+
+        # Replace 'your-file-key' with the key of the file you want to query
+        file_key = file[0]
+
+        # List object ACL (Access Control List)
+        response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+
+        # Output the ACL for the file
+        file_content = response['Body'].read()
+
+        # You can now work with the file content in memory
+        # For example, print the first 100 characters
+        logger.info(file_content[:100])
+    except Exception as exp:
+        logger.error(f"An error occurred: {exp}")
+
 def get_s3_access_details(bucket_name,file,credentials,logger):
     # Initialize the Boto3 S3 client
     try:
@@ -178,6 +225,7 @@ def get_s3_access_details(bucket_name,file,credentials,logger):
         # Output the ACL for the file
         logger.info("File ACL:")
         for grant in file_acl['Grants']:
+            get_client_name_by_id(grant.get("Grantee").get("ID"),credentials,logger)
             logger.info(grant)
 
         # List object policy
@@ -206,5 +254,6 @@ if __name__ == "__main__":
             for file in bucket_files:
                 logger.info(f"Starting data check for item {start} : {file}")
                 get_s3_access_details(bucket_name,file,aws_credentials,logger)
+                get_s3_file_details(bucket_name, file, aws_credentials, logger)
                 start+=1
             time.sleep(300)
