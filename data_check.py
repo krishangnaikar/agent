@@ -179,6 +179,36 @@ def lsit_all_s3_data(bucket,credentials,logger):
         logger.error(f"An error occurred: {exp}")
         return []
 
+def identify_file_type(bucket_name,file,credentials,logger):
+    file_type, encryption_status ,compression_type= "Unknown", "Unknown" , "Uncompressed"
+    try:
+        file_data = file[0].split(".")
+        if len(file_data)>1 and file_data[-1] in ["fasta","fa","fas"]:
+            file_type = "FASTA"
+            data = get_s3_file_details(bucket_name,file,credentials,logger)
+        if len(file_data)>1 and file_data[-1] in ["fastq","fq","fas"]:
+            file_type = "FASTAQ"
+            data = get_s3_file_details(bucket_name,file,credentials,logger)
+        if len(file_data)>1 and file_data[-1] in ["bam","bai"]:
+            file_type = "BAM"
+            data = get_s3_file_details(bucket_name,file,credentials,logger)
+        if len(file_data)>1 and file_data[-1] in ["gz","zip"]:
+            compression_type = "GZ"
+            encryption_status = "Encrypted"
+            if len(file_data)>2:
+                if file_data[-2] in ["fasta", "fa", "fas"]:
+                    file_type = "FASTA"
+                if file_data[-2] in ["fastq", "fq", "fas"]:
+                    file_type = "FASTAQ"
+                if file_data[-2] in ["bam", "bai"]:
+                    file_type = "BAM"
+            # data = get_s3_file_details(bucket_name,file,credentials,logger)
+        logger.info(f"FILE type for File {file} is {file_type} and encryption status is {encryption_status}")
+        return file_type, encryption_status, compression_type
+    except Exception as exp:
+        logger.error(f"An error occurred: {exp}")
+        return file_type,encryption_status,compression_type
+
 def get_s3_file_details(bucket_name,file,credentials,logger):
     # Initialize the Boto3 S3 client
     try:
@@ -192,9 +222,9 @@ def get_s3_file_details(bucket_name,file,credentials,logger):
 
         # Replace 'your-file-key' with the key of the file you want to query
         file_key = file[0]
-
+        range_header = f"bytes={0}-{1000}"
         # List object ACL (Access Control List)
-        response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+        response = s3_client.get_object(Bucket=bucket_name, Key=file_key, Range=range_header)
 
         # Output the ACL for the file
         file_content = response['Body'].read()
@@ -202,6 +232,7 @@ def get_s3_file_details(bucket_name,file,credentials,logger):
         # You can now work with the file content in memory
         # For example, print the first 100 characters
         logger.info(file_content[:100])
+        return file_content
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
 
@@ -236,6 +267,29 @@ def get_s3_access_details(bucket_name,file,credentials,logger):
         logger.info(file_policy['Policy'])
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
+def send_file_data(data, aws_credentials, logger):
+    try:
+        url = aws_credentials.get("file_url")
+        agent_files = []
+        agent_files.append(data)
+        payload_data = {
+            "agent_uuid": aws_credentials["agent_uuid"],
+            "agent_files": agent_files
+        }
+        payload = json.dumps(payload_data)
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {aws_credentials["token"]}'
+        }
+        # Send a POST request with the JSON data
+        response = requests.request("POST", url, headers=headers, data=payload)
+        if response.status_code == 200:
+            logger.info("File updated succesfully")
+        else:
+
+            logger.error("File api failed")
+    except Exception as exp:
+        logger.error(f"An error occurred: {exp}")
 
 if __name__ == "__main__":
     credentials_file_path = "credentials.json"
@@ -254,6 +308,13 @@ if __name__ == "__main__":
             for file in bucket_files:
                 logger.info(f"Starting data check for item {start} : {file}")
                 get_s3_access_details(bucket_name,file,aws_credentials,logger)
-                get_s3_file_details(bucket_name, file, aws_credentials, logger)
+                file_type , enryption_staus , compression_type =identify_file_type(bucket_name, file, aws_credentials, logger)
+                data = {
+                          "file_url": file[0],
+                          "encryption_status": enryption_staus,
+                          "file_type": file_type,
+                          "compression_type": compression_type
+                        }
+                send_file_data(data, aws_credentials, logger)
                 start+=1
             time.sleep(300)
