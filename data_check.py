@@ -186,7 +186,7 @@ def identify_file_type(bucket_name,file,credentials,logger):
         if len(file_data)>1 and file_data[-1] in ["fasta","fa","fas"]:
             file_type = "FASTA"
             data = get_s3_file_details(bucket_name,file,credentials,logger)
-        if len(file_data)>1 and file_data[-1] in ["fastq","fq","fas"]:
+        if len(file_data)>1 and file_data[-1] in ["fastq","fq"]:
             file_type = "FASTAQ"
             data = get_s3_file_details(bucket_name,file,credentials,logger)
         if len(file_data)>1 and file_data[-1] in ["bam","bai"]:
@@ -198,7 +198,7 @@ def identify_file_type(bucket_name,file,credentials,logger):
             if len(file_data)>2:
                 if file_data[-2] in ["fasta", "fa", "fas"]:
                     file_type = "FASTA"
-                if file_data[-2] in ["fastq", "fq", "fas"]:
+                if file_data[-2] in ["fastq", "fq"]:
                     file_type = "FASTAQ"
                 if file_data[-2] in ["bam", "bai"]:
                     file_type = "BAM"
