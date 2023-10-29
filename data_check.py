@@ -307,14 +307,15 @@ if __name__ == "__main__":
             start = 1
             for file in bucket_files:
                 logger.info(f"Starting data check for item {start} : {file}")
-                get_s3_access_details(bucket_name,file,aws_credentials,logger)
+                # get_s3_access_details(bucket_name,file,aws_credentials,logger)
                 file_type , enryption_staus , compression_type =identify_file_type(bucket_name, file, aws_credentials, logger)
                 data = {
                           "file_url": file[0],
                           "encryption_status": enryption_staus,
                           "file_type": file_type,
-                          "compression_type": compression_type
+                          "compression_type": compression_type,
+                          "storage_type": "s3"
                         }
                 send_file_data(data, aws_credentials, logger)
                 start+=1
-            time.sleep(300)
+            time.sleep(3600)
