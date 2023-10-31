@@ -40,7 +40,7 @@ def read_aws_credentials_from_json(file_path):
         print(f"Invalid JSON format in '{file_path}'.")
         return None
 
-def get_client_name_by_id(client_id,credentials,logger):
+def get_client_name(credentials,logger):
 
     try:
         iam_client = boto3.client('iam',
@@ -48,18 +48,11 @@ def get_client_name_by_id(client_id,credentials,logger):
                                   aws_secret_access_key=credentials['aws_secret_access_key']
                                   )
         # Replace 'your-aws-account-id' with the AWS account ID you want to look up
-        aws_account_id = client_id
         response = iam_client.get_account_authorization_details(Filter=['User'])
-
-        for user_detail in response.get('UserDetailList', []):
-            if user_detail['Arn'].split(':')[4] == aws_account_id:
-                user_name = user_detail['UserName']
-                print(f"User Name: {user_name}")
-                break  # Break after finding the user
-        else:
-            print(f"No user found with AWS account ID {aws_account_id}")
+        return response
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+        return None
 def check_s3_bucket_health(credentials, bucket_name,logger):
     try:
         # Initialize the S3 client with the provided credentials
@@ -256,7 +249,7 @@ def get_s3_access_details(bucket_name,file,credentials,logger):
         # Output the ACL for the file
         logger.info("File ACL:")
         for grant in file_acl['Grants']:
-            get_client_name_by_id(grant.get("Grantee").get("ID"),credentials,logger)
+            get_client_name(credentials,logger)
             logger.info(grant)
 
         # List object policy
@@ -286,8 +279,43 @@ def send_file_data(data, aws_credentials, logger):
         if response.status_code == 200:
             logger.info("File updated succesfully")
         else:
-
             logger.error("File api failed")
+    except Exception as exp:
+        logger.error(f"An error occurred: {exp}")
+
+def send_user_data(data, aws_credentials, logger):
+    try:
+        agent_files = []
+        url = aws_credentials.get("user_permission_url")
+        response = get_client_name(aws_credentials,logger)
+        if response and url:
+            if "UserDetailList" in response:
+                user_list = response["UserDetailList"]
+                for user in user_list:
+                    file_name = data["file_url"]
+                    username = user["UserName"]
+                    policy_list = user["UserPolicyList"]
+                    permissions = []
+                    for policy in policy_list:
+                        if policy["PolicyName"]=="s3":
+                            permissions = ["read","write"]
+                    payload_data = {
+                        "file_url": file_name,
+                        "user_name": username,
+                        "permissions": permissions
+                    }
+                    agent_files.append(payload_data)
+            payload = json.dumps(agent_files)
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {aws_credentials["token"]}'
+            }
+            # Send a POST request with the JSON data
+            response = requests.request("POST", url, headers=headers, data=payload)
+            if response.status_code == 200:
+                logger.info("File updated succesfully")
+            else:
+                logger.error("File api failed")
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
 
@@ -317,5 +345,6 @@ if __name__ == "__main__":
                           "storage_type": "s3"
                         }
                 send_file_data(data, aws_credentials, logger)
+                send_user_data(data, aws_credentials, logger)
                 start+=1
-            time.sleep(3600)
+            time.sleep(7200)
