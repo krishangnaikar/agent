@@ -171,6 +171,30 @@ def lsit_all_s3_data(bucket,credentials,logger):
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
         return []
+def is_fasta(content):
+    lines = content.split('\n')
+    for line in lines:
+        if line.strip() == "":
+            continue
+        if not line.startswith('>'):
+            return False
+    return True
+def is_fastq(content):
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if i % 4 == 0:  # Check the header line
+            if not line.startswith('@'):
+                return False
+    return True
+def is_bam(content):
+    # BAM files start with the binary BAM magic number (0x1f, 0x8b) and 'BAM\1'
+    return content.startswith(b'BAM\x01')
+
+def is_bai(content):
+    # BAI files typically start with a known binary signature
+    bai_signature = b'BAI\x01'
+    return content.startswith(bai_signature)
 
 def identify_file_type(bucket_name,file,credentials,logger):
     file_type, encryption_status ,compression_type= "Unknown", "Unknown" , "Uncompressed"
@@ -179,12 +203,23 @@ def identify_file_type(bucket_name,file,credentials,logger):
         if len(file_data)>1 and file_data[-1] in ["fasta","fa","fas"]:
             file_type = "FASTA"
             data = get_s3_file_details(bucket_name,file,credentials,logger)
+            if is_fasta(data.decode('utf-8')):
+                encryption_status = "Not Encrypted"
         if len(file_data)>1 and file_data[-1] in ["fastq","fq"]:
             file_type = "FASTAQ"
             data = get_s3_file_details(bucket_name,file,credentials,logger)
-        if len(file_data)>1 and file_data[-1] in ["bam","bai"]:
+            if is_fastq(data.decode('utf-8')):
+                encryption_status = "Not Encrypted"
+        if len(file_data)>1 and file_data[-1] in ["bam"]:
             file_type = "BAM"
             data = get_s3_file_details(bucket_name,file,credentials,logger)
+            if is_bam(data):
+                encryption_status = "Not Encrypted"
+        if len(file_data)>1 and file_data[-1] in ["bai"]:
+            file_type = "BAM"
+            data = get_s3_file_details(bucket_name,file,credentials,logger)
+            if is_bai(data):
+                encryption_status = "Not Encrypted"
         if len(file_data)>1 and file_data[-1] in ["gz","zip"]:
             compression_type = "GZ"
             encryption_status = "Encrypted"
@@ -222,9 +257,6 @@ def get_s3_file_details(bucket_name,file,credentials,logger):
         # Output the ACL for the file
         file_content = response['Body'].read()
 
-        # You can now work with the file content in memory
-        # For example, print the first 100 characters
-        logger.info(file_content[:100])
         return file_content
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
@@ -313,9 +345,9 @@ def send_user_data(data, aws_credentials, logger):
             # Send a POST request with the JSON data
             response = requests.request("POST", url, headers=headers, data=payload)
             if response.status_code == 200:
-                logger.info("File updated succesfully")
+                logger.info("Users updated succesfully")
             else:
-                logger.error("File api failed")
+                logger.error("Users api failed")
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
 
