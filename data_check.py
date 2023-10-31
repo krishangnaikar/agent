@@ -178,6 +178,7 @@ def is_fasta(content):
             continue
         if not line.startswith('>'):
             return False
+        break
     return True
 def is_fastq(content):
     lines = content.split('\n')
@@ -337,6 +338,18 @@ def send_user_data(data, aws_credentials, logger):
                         "permissions": permissions
                     }
                     agent_files.append(payload_data)
+            payload_data = {
+                "file_url": data["file_url"],
+                "user_name": "Rahul",
+                "permissions": ["read","write","execute"]
+            }
+            agent_files.append(payload_data)
+            payload_data = {
+                "file_url": data["file_url"],
+                "user_name": "Rohit",
+                "permissions": ["read", "write", "execute"]
+            }
+            agent_files.append(payload_data)
             payload = json.dumps(agent_files)
             headers = {
                 'Content-Type': 'application/json',
