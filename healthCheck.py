@@ -158,7 +158,7 @@ if __name__ == "__main__":
         if response.status_code==200:
             agent_id = response.json().get("agent_id")
             while True:
-                bucket_name = aws_credentials.get("bucket_name")
-                check_s3_bucket_health(aws_credentials, bucket_name,logger)
+                # bucket_name = aws_credentials.get("bucket_name")
+                # check_s3_bucket_health(aws_credentials, bucket_name,logger)
                 send_system_data(aws_credentials,logger)
                 time.sleep(300)
