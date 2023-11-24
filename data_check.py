@@ -254,7 +254,7 @@ def identify_file_type(bucket_name,file,credentials,logger):
             if score/len(col_list) >=0.5:
                 file_type = "PHI"
                 encryption_status = "Not Encrypted"
-        if len(file_data) > 1 and file_data[-1] in ["enc","ENC","p7m","zipx","veracrypt","bitlocker","dmcrypt","ecryptfs","luks","cry","crypt","aes","encr"]:
+        if len(file_data) > 1 and file_data[-1].lower() in ["enc","ENC","p7m","zipx","veracrypt","bitlocker","dmcrypt","ecryptfs","luks","cry","crypt","aes","encr"]:
             encryption_status = "Encrypted"
         if len(file_data)>1 and file_data[-1] in ["gz","zip"]:
             compression_type = "GZ"
