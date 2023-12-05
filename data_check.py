@@ -394,7 +394,7 @@ def get_dynamodb_data(credentials,logger):
     dynamodb = boto3.resource('dynamodb', region_name="us-west-1", aws_access_key_id=aws_access_key_id,
                               aws_secret_access_key=aws_secret_access_key)
     params = {'Limit': 10}
-    table_name = 'truenil_prism_mvp'
+    table_name = credentials['dynamodb_table_name']
     table = dynamodb.Table(table_name)
     while True:
         response = table.scan(**params)
