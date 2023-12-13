@@ -1,6 +1,8 @@
 import json
 import logging
 import logging.handlers
+from io import BytesIO
+
 import boto3
 from botocore.exceptions import BotoCoreError
 import psutil
@@ -210,10 +212,18 @@ def get_csv_data(bucket_name,file,credentials,logger):
         # Replace 'your-file-key' with the key of the file you want to query
         file_key = file[0]
         # List object ACL (Access Control List)
+        file_content = None
         response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+        if file_key.lower().endswith(('.csv', '.txt')):
+            # For CSV files
+            file_content = pd.read_csv(response['Body'])
+        elif file_key.lower().endswith(('.xls', '.xlsx')):
+            # For Excel files
+            # Create a seekable buffer around the S3 response content
+            buffer = BytesIO(response['Body'].read())
+            file_content = pd.read_excel(buffer)
 
         # Output the ACL for the file
-        file_content = pd.read_csv(response['Body'])
 
         return file_content
     except Exception as exp:
@@ -244,16 +254,31 @@ def identify_file_type(bucket_name,file,credentials,logger):
             if is_bai(data):
                 encryption_status = "Not Encrypted"
         if len(file_data) > 1 and file_data[-1] in ["csv","xlsx"]:
-            col_list = ["name","height","weight","eye color","hair type","blood type","skin color"]
             data = get_csv_data(bucket_name,file,credentials,logger)
             cols = data.columns.tolist()
-            score = 0
+            col_list = ["name", "height", "weight", "eye color", "hair type", "blood type", "skin color"]
+            phi_score = 0
+            for col in col_list:
+                if col.lower() in cols:
+                    phi_score+=1
+            col_list = ["Cardholder name", "Credit/debit card account number", "Credit/debit card expiration date", "Credit/debit card verification number.", "Credit/debit card security code.", "Primary Account Number", "PAN","Magnetic stripe data","Cardholder name","Expiration date","Service code","Personal identification number","PIN"]
+            pci_score = 0
             for col in col_list:
                 if col in cols:
-                    score+=1
-            if score/len(col_list) >=0.5:
+                    pci_score += 1
+            col_list = ["Employee_ID", "Adress", "email", "Social Security number", "Driver's license number", "Passport Number", "Name","Address","Phone number","Email address"]
+            pii_score = 0
+            for col in col_list:
+                if col in cols:
+                    pii_score += 1
+            if phi_score>pii_score and phi_score>pci_score:
                 file_type = "PHI"
-                encryption_status = "Not Encrypted"
+            if pii_score>phi_score and pii_score>pci_score:
+                file_type = "PII"
+            if pci_score>pii_score and pci_score>phi_score:
+                file_type = "PCI"
+            encryption_status = "Not Encrypted"
+
         if len(file_data) > 1 and file_data[-1].lower() in ["enc","ENC","p7m","zipx","veracrypt","bitlocker","dmcrypt","ecryptfs","luks","cry","crypt","aes","encr"]:
             encryption_status = "Encrypted"
         if len(file_data)>1 and file_data[-1] in ["gz","zip"]:
