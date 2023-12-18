@@ -18,7 +18,7 @@ def setup_logger(log_file):
     handler = logging.handlers.TimedRotatingFileHandler(
         log_file,
         when="M",  # Rotate every 10 minutes
-        interval=10,  # Rotate every 10 minutes
+        interval=600,  # Rotate every 10 minutes
         backupCount=5  # Keep up to 5 backup log files
     )
 
