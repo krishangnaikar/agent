@@ -283,7 +283,7 @@ def identify_file_type(bucket_name,file,credentials,logger):
             encryption_status = "Encrypted"
         if len(file_data)>1 and file_data[-1] in ["gz","zip"]:
             compression_type = "GZ"
-            encryption_status = "Encrypted"
+            encryption_status = "Not Encrypted"
             if len(file_data)>2:
                 if file_data[-2] in ["fasta", "fa", "fas"]:
                     file_type = "FASTA"
@@ -291,6 +291,8 @@ def identify_file_type(bucket_name,file,credentials,logger):
                     file_type = "FASTAQ"
                 if file_data[-2] in ["bam", "bai"]:
                     file_type = "BAM"
+                if file_data[-2] in ["enc","ENC","p7m","zipx","veracrypt","bitlocker","dmcrypt","ecryptfs","luks","cry","crypt","aes","encr"]:
+                    encryption_status = "Encrypted"
             # data = get_s3_file_details(bucket_name,file,credentials,logger)
         logger.info(f"FILE type for File {file} is {file_type} and encryption status is {encryption_status}")
         return file_type, encryption_status, compression_type
