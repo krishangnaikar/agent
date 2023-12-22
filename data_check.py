@@ -413,6 +413,52 @@ def send_user_data(data, aws_credentials, logger):
                 logger.error("Users api failed")
     except Exception as exp:
         logger.error(f"An error occurred: {exp}")
+
+def send_dynamodb_user_data(data, aws_credentials, logger):
+    try:
+        agent_files = []
+        url = aws_credentials.get("user_permission_url")
+        response = get_client_name(aws_credentials,logger)
+        if response and url:
+            if "UserDetailList" in response:
+                user_list = response["UserDetailList"]
+                for user in user_list:
+                    file_name = data["file_url"]
+                    username = user["UserName"]
+                    policy_list = user["UserPolicyList"]
+                    attached_policy_list = user.get("AttachedManagedPolicies")
+                    permissions = []
+                    for policy in policy_list:
+                        if "DynamoDB" in policy["PolicyName"]:
+                            permissions = ["read","write"]
+                            payload_data = {
+                                "file_url": file_name,
+                                "user_name": username,
+                                "permissions": permissions
+                            }
+                            agent_files.append(payload_data)
+                    for policy in attached_policy_list:
+                        if "DynamoDB" in policy["PolicyName"]:
+                            permissions = ["read","write"]
+                            payload_data = {
+                                "file_url": file_name,
+                                "user_name": username,
+                                "permissions": permissions
+                            }
+                            agent_files.append(payload_data)
+            payload = json.dumps(agent_files)
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {aws_credentials["token"]}'
+            }
+            # Send a POST request with the JSON data
+            response = requests.request("POST", url, headers=headers, data=payload)
+            if response.status_code == 200:
+                logger.info("Users updated succesfully")
+            else:
+                logger.error("Users api failed")
+    except Exception as exp:
+        logger.error(f"An error occurred: {exp}")
 def get_dynamodb_data(credentials,logger):
     aws_access_key_id = credentials['aws_access_key_id']
     aws_secret_access_key = credentials['aws_secret_access_key']
@@ -436,7 +482,7 @@ def get_dynamodb_data(credentials,logger):
                       "storage_type": "Dynamodb"
                     }
             send_file_data(data, aws_credentials, logger)
-            send_user_data(data, aws_credentials, logger)
+            send_dynamodb_user_data(data, aws_credentials, logger)
         # Check if there are more items to retrieve
         if 'LastEvaluatedKey' in response:
             params['ExclusiveStartKey'] = response['LastEvaluatedKey']
