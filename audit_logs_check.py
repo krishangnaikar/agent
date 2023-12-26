@@ -82,7 +82,7 @@ def find_cloudtrail_bucket(credentials,logger):
                                     if event_name in ['GetObject', 'DeleteObject', 'PutObject']:
                                         user = record.get("userIdentity")
                                         username = "Unknown"
-                                        if user:
+                                        if user and user.get("arn",None):
                                             username = user.get("arn").split("/")[-1]
                                         resources = record.get("resources")
                                         filename = "NA"
@@ -136,7 +136,7 @@ def find_cloudtrail_bucket(credentials,logger):
                                         if event_name in ['GetObject', 'DeleteObject', 'PutObject']:
                                             user = record.get("userIdentity")
                                             username = "Unknown"
-                                            if user:
+                                            if user and user.get("arn",None):
                                                 username = user.get("arn").split("/")[-1]
                                             resources = record.get("resources")
                                             filename = "NA"
