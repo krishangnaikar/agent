@@ -6,7 +6,7 @@ import json
 from io import BytesIO
 
 import boto3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta ,timezone
 
 import requests
 
@@ -55,58 +55,55 @@ def find_cloudtrail_bucket(credentials,logger):
                 Bucket=s3_bucket_name
             )
             nextContinuoustoken = responsee.get("NextContinuationToken")
-            for i in range(9):
-                responsee = s3_client.list_objects_v2(
-                    Bucket=s3_bucket_name,
-                    ContinuationToken=nextContinuoustoken
-                )
-                nextContinuoustoken = responsee.get("NextContinuationToken")
 
             # Fetch and print access logs
             for obj in responsee.get('Contents', []):
                 key = obj['Key']
                 # print(f"Fetching logs from: s3://{s3_bucket_name}/{key}")
-
-                # Download and process the log file content
+                last_modified = obj["LastModified"]
+                todays_date = datetime.now(timezone.utc)
+                total_seconds = (todays_date - last_modified).total_seconds()
+                if total_seconds > 37000:
+                    continue
                 try:
                     log_content = s3_client.get_object(Bucket=s3_bucket_name, Key=key)['Body'].read()
                     with gzip.GzipFile(fileobj=BytesIO(log_content), mode='rb') as f:
                         decompressed_content = f.read().decode('utf-8')
                         i+=1
-                        if "PutObject" in decompressed_content or "GetObject" in decompressed_content or "DeleteObject" in decompressed_content:
+                        if "PutObject" in decompressed_content or "DeleteObject" in decompressed_content:
                             dcontent = json.loads(decompressed_content)
                             records = dcontent.get("Records", None)
                             if records:
                                 for record in records:
                                     event_name = record.get("eventName")
-                                    if event_name in ['GetObject', 'DeleteObject', 'PutObject']:
+                                    if event_name in ['DeleteObject', 'PutObject']:
                                         user = record.get("userIdentity")
-                                        username = "Unknown"
-                                        if user:
+                                        username = None
+                                        if user and user.get("arn",None):
                                             username = user.get("arn").split("/")[-1]
                                         resources = record.get("resources")
                                         filename = "NA"
                                         for resource in resources:
                                             if resource.get("type") == 'AWS::S3::Object':
                                                 filename = resource.get("ARN")
+                                        event_time = record.get("eventTime", "")
                                         operation = "Unkown"
-                                        if event_name == "GetObject":
-                                            operation = "Read"
                                         if event_name == "DeleteObject":
                                             operation = "Delete"
                                         if event_name == "PutObject":
                                             operation = "Create"
-                                        audit_data = {
-                                            "file_name": filename,
-                                            "user_name": username,
-                                            "operation": operation,
-                                            "user_email": username
-                                        }
-                                        send_audit_data(aws_credentials, audit_data, logger)
-                                        logger.info(
-                                            f"The event is {event_name} user is {username} amd filename is {filename}")
-                                        logger.info(key)
-                                        logger.info(i)
+                                        if username:
+                                            audit_data = {
+                                                "file_name": filename + "&@#" + event_time,
+                                                "user_name": username,
+                                                "operation": operation,
+                                                "user_email": username
+                                            }
+                                            send_audit_data(aws_credentials, audit_data, logger)
+                                            logger.info(
+                                                f"The event is {event_name} user is {username} amd filename is {filename}")
+                                            logger.info(key)
+                                            logger.info(i)
 
                 except Exception as exp:
                     logger.error(exp)
@@ -120,46 +117,52 @@ def find_cloudtrail_bucket(credentials,logger):
                 for obj in responsee.get('Contents', []):
                     key = obj['Key']
                     # print(f"Fetching logs from: s3://{s3_bucket_name}/{key}")
-
+                    last_modified = obj["LastModified"]
+                    todays_date = datetime.now(timezone.utc)
+                    total_seconds = (todays_date - last_modified).total_seconds()
+                    if total_seconds > 37000:
+                        continue
                     # Download and process the log file content  b
                     try:
                         log_content = s3_client.get_object(Bucket=s3_bucket_name, Key=key)['Body'].read()
                         with gzip.GzipFile(fileobj=BytesIO(log_content), mode='rb') as f:
                             decompressed_content = f.read().decode('utf-8')
                             i += 1
-                            if "PutObject" in decompressed_content or "GetObject" in decompressed_content or "DeleteObject" in decompressed_content:
+                            if "PutObject" in decompressed_content or "DeleteObject" in decompressed_content:
                                 dcontent = json.loads(decompressed_content)
                                 records = dcontent.get("Records",None)
                                 if records:
                                     for record in records:
                                         event_name = record.get("eventName")
-                                        if event_name in ['GetObject', 'DeleteObject', 'PutObject']:
+                                        if event_name in ['DeleteObject', 'PutObject']:
                                             user = record.get("userIdentity")
-                                            username = "Unknown"
-                                            if user:
+                                            username = None
+                                            if user and user.get("arn",None):
                                                 username = user.get("arn").split("/")[-1]
                                             resources = record.get("resources")
+                                            event_time = record.get("eventTime","")
                                             filename = "NA"
                                             for resource in resources:
                                                 if resource.get("type")=='AWS::S3::Object':
                                                     filename = resource.get("ARN")
                                             operation = "Unkown"
-                                            if event_name=="GetObject":
-                                                operation = "Read"
                                             if event_name=="DeleteObject":
                                                 operation = "Delete"
                                             if event_name=="PutObject":
                                                 operation = "Create"
-                                            audit_data = {
-                                                            "file_name": filename,
-                                                            "user_name": username,
-                                                            "operation": operation,
-                                                            "user_email": username
-                                                        }
-                                            send_audit_data(aws_credentials,audit_data,logger)
-                                            logger.info(f"The event is {event_name} user is {username} amd filename is {filename}")
-                                            logger.info(key)
-                                            logger.info(i)
+                                            if username:
+                                                audit_data = {
+                                                    "file_name": filename+"&@#"+event_time,
+                                                    "user_name": username,
+                                                    "operation": operation,
+                                                    "user_email": username
+                                                }
+                                                send_audit_data(aws_credentials, audit_data, logger)
+                                                logger.info(
+                                                    f"The event is {event_name} user is {username} amd filename is {filename}")
+                                                logger.info(key)
+                                                logger.info(i)
+
                     except Exception as exp:
                         logger.error(exp)
 
@@ -270,5 +273,5 @@ if __name__ == "__main__":
     if aws_credentials:
         while True:
             find_cloudtrail_bucket(aws_credentials,logger)
-            time.sleep(86400)
+            time.sleep(36000)
 
