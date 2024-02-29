@@ -253,7 +253,7 @@ def identify_file_type(bucket_name,file,credentials,logger):
             data = get_s3_file_details(bucket_name,file,credentials,logger)
             if is_bai(data):
                 encryption_status = "Not Encrypted"
-        if len(file_data) > 1 and file_data[-1] in ["csv","xlsx"]:
+        if len(file_data) > 1 and file_data[-1] in ["csv","xlsx", "numbers", "Numbers", "NUMBERS"]:
             data = get_csv_data(bucket_name,file,credentials,logger)
             cols = data.columns.tolist()
             col_list = ["name", "height", "weight", "eye color", "hair type", "blood type", "skin color"]
