@@ -4,7 +4,7 @@ import logging.handlers
 import boto3
 from botocore.exceptions import BotoCoreError
 
-
+ 
 def setup_logger(log_file):
     logger = logging.getLogger('my_logger')
     logger.setLevel(logging.DEBUG)
