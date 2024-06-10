@@ -3,7 +3,14 @@ import logging
 import logging.handlers
 import boto3
 from botocore.exceptions import BotoCoreError
+"""
+This Python script checks the health of an AWS S3 bucket using provided AWS credentials stored in a JSON file. Here's a breakdown of the script:
+Setup Logger: The setup_logger function configures a logger named "my_logger" to write log messages to a rotating log file. It rotates the log file every 10 minutes and keeps up to 5 backup log files.
+Read AWS Credentials from JSON: The read_aws_credentials_from_json function reads AWS credentials from a JSON file. It returns the credentials as a dictionary or None if there are any errors (file not found or invalid JSON format).
+Check S3 Bucket Health: The check_s3_bucket_health function takes AWS credentials, a bucket name, and a logger as input. It initializes an S3 client using the provided credentials and checks the health of the specified S3 bucket. It checks if the bucket exists, if it contains any objects, and logs the results.
+Main Script Execution: In the __main__ block, the script reads AWS credentials from the specified JSON file, sets up a logger, and then enters a loop to periodically check the health of the S3 bucket every 10 seconds. If the AWS credentials are valid, the script continues to check the bucket health indefinitely.
 
+"""
  
 def setup_logger(log_file):
     logger = logging.getLogger('my_logger')
